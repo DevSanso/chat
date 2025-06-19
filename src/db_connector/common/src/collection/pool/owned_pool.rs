@@ -73,7 +73,7 @@ struct OwnedPoolState<T> {
 }
 
 struct InternalOwnedPool<T,P> where T : 'static, P: 'static {
-    gen : Box<dyn Fn(P) -> Option<T>>,
+    gen : Box<dyn Fn(P) -> Result<T, Box<dyn Error>>>,
     max_size : usize,
     state : Mutex<OwnedPoolState<T>>,
     pool_name : String
@@ -83,7 +83,7 @@ unsafe impl<T,P> Sync for InternalOwnedPool<T,P> {}
 unsafe impl<T,P> Send for InternalOwnedPool<T,P> {}
 
 impl<T,P> InternalOwnedPool<T,P> where T : 'static, P: 'static {
-    pub fn new(name : String, gen : Box<dyn Fn(P) -> Option<T>>, max_size : usize) -> Arc<Self> {
+    pub fn new(name : String, gen : Box<dyn Fn(P) -> Result<T, Box<dyn Error>>>, max_size : usize) -> Arc<Self> {
         Arc::new(InternalOwnedPool {
             gen,
             state : Mutex::new(OwnedPoolState { items: VecDeque::new(), alloc_size: 0 }),
@@ -100,8 +100,9 @@ impl<T,P> InternalOwnedPool<T,P> where T : 'static, P: 'static {
             if g.items.len() < l {
                 if g.alloc_size < self.max_size {
                     let gen_item = (self.gen)(p);
-                if gen_item.is_none() {
-                    return make_err_crate!(collection, GenResultIsNoneError, "pool_name:{}", self.pool_name);
+                if gen_item.is_err() {
+                    let err_msg = gen_item.err().unwrap();
+                    return make_err_crate!(collection, GenResultIsNoneError, "pool_name:{}\n{}", self.pool_name, err_msg);
                 }
                 g.items.push_back(gen_item.unwrap());
                 g.alloc_size += 1;
@@ -175,7 +176,7 @@ unsafe impl<T,P> Sync for OwnedPool<T,P> {}
 unsafe impl<T,P> Send for OwnedPool<T,P> {}
 
 impl<T,P> OwnedPool<T,P> where T : 'static, P: 'static {
-    pub fn new(name : String, gen : Box<dyn Fn(P) -> Option<T>>, max_size : usize) -> Arc<Self> {
+    pub fn new(name : String, gen : Box<dyn Fn(P) -> Result<T, Box<dyn Error>>>, max_size : usize) -> Arc<Self> {
         let internal = InternalOwnedPool::new(name,gen,max_size);
 
         Arc::new(OwnedPool {
@@ -207,7 +208,7 @@ mod pool_tests {
         use super::*;
 
         let p : Arc<InternalOwnedPool<(),()>> = InternalOwnedPool::new(String::from("test"),Box::new(|_x : ()| {
-            return Some(())
+            return Ok(())
         }),5);
 
         {
