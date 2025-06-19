@@ -1,0 +1,9 @@
+[package]
+name = "duckdb_conn"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+common = {path = "../common"}
+common_conn = {path = "../common_conn"}
+duckdb = "1.3.0"
