@@ -1,0 +1,12 @@
+[package]
+name = "idl"
+version = "0.1.0"
+edition = "2021"
+
+build = "build.rs"
+[dependencies]
+prost = "0.14.1"
+
+[build-dependencies]
+lazy_static = "1.4.0"
+prost-build = "0.14.1"

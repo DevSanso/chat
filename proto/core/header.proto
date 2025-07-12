@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package core;
+
+message CoreHeader {
+  string key = 1;
+  float version = 2;
+  string program = 3;
+}
