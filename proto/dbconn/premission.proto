@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+import "core/header.proto";
+
+package dbconn;
+
+message ChangeObjectPerm {
+  string object = 1;
+
+  bool   group_read = 2;
+  bool   group_write = 3;
+}
+
+message CreateObjectPerm {
+  string object = 1;
+  string owner  = 2;
+  string desc   = 3;
+
+  bool   group_read = 4;
+  bool   group_write = 5;
+
+  repeated string groups = 6;
+}
+
+message DropObjectPerm {
+  string object = 1;
+}
+
+message DbConnRequestPerm {
+  oneof body {
+    ChangeObjectPerm change = 1;
+    CreateObjectPerm create = 2;
+    DropObjectPerm drop = 3;
+  }
+}
