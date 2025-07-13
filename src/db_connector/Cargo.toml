@@ -1,2 +1,3 @@
 [workspace]
 members = [ "common_conn","db_connector", "common", "postgres_conn", "scylla_conn", "duckdb_conn", "idl"]
+resolver = "3"

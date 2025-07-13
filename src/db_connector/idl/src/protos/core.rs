@@ -7,4 +7,6 @@ pub struct CoreHeader {
     pub version: f32,
     #[prost(string, tag = "3")]
     pub program: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub action: ::prost::alloc::string::String,
 }

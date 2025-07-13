@@ -16,15 +16,3 @@ pub mod logger {
         }
     }
 }
-
-pub mod parser {
-    pub mod serde {
-        pub mod toml {
-            pub use toml::*;
-        }
-        
-        pub mod serde_json {
-            pub use serde_json::*;
-        }
-    }
-}

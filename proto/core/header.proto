@@ -6,4 +6,5 @@ message CoreHeader {
   string key = 1;
   float version = 2;
   string program = 3;
+  string action  = 4;
 }

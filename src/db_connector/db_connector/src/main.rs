@@ -1,6 +1,11 @@
+mod config;
 mod constant;
 mod server;
+mod args;
+
+use clap::Parser;
 
 fn main() {
-    println!("Hello, world!");
+    let process_args = args::Args::parse();
+    
 }

@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+import "core/header.proto";
+import "dbconn/premission.proto";
+
+package dbconn;
+
+message DbConnResponse {
+  core.CoreHeader header = 1;
+
+  oneof body {
+    dbconn.DbConnResponsePerm perm = 2;
+  }
+}
