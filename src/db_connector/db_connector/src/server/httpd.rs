@@ -1,31 +1,35 @@
+use std::cell::RefCell;
 use std::error::Error;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream, SocketAddr};
-use std::sync::{atomic, Arc, Mutex};
+use std::sync::{Arc, Mutex};
 use std::{thread, time};
 
 use common::common_make_err;
+use common_conn::{CommonSqlConnectionPool, CommonSqlConnection};
 use common::logger;
 use idl::protos::dbconn::DbConnRequest;
 use idl::protos::dbconn::DbConnResponse;
-
+use crate::entry::proto::search_proto_entry;
 //type proto_entry_fn = Box<dyn Fn(DbConnRequest) -> Result<DbConnResponse, Box<dyn Error>> + Send + 'static>;
-type proto_entry_fn = &'static (dyn Fn(DbConnRequest) -> Result<DbConnResponse, Box<dyn Error>> + Send + Sync);
 
-struct TcpServerConfig {
+
+pub struct TcpServerConfig {
+    kill_switch : Arc<Mutex<bool>>,
+    db_pool : CommonSqlConnectionPool,
+
     ip : String,
     port : u32,
-    kill_switch : Arc<Mutex<bool>>,
-    proto_entry_fn : Option<proto_entry_fn>,
-    max_thread_size : usize
-}
-struct TcpServer {
-    listen : TcpListener,
-    proto_entry_fn : Option<proto_entry_fn>,
-    kill_switch : Arc<Mutex<bool>>,
-
     max_thread_size : usize,
-    active_thread_size : Arc<Mutex<usize>>
+    action : String
+}
+pub struct TcpServer {
+    listen : TcpListener,
+    kill_switch : Arc<Mutex<bool>>,
+    max_thread_size : usize,
+    active_thread_size : Arc<Mutex<usize>>,
+    action : String,
+    db_pool : CommonSqlConnectionPool
 }
 
 impl TcpServer {
@@ -39,9 +43,10 @@ impl TcpServer {
         Ok(TcpServer { 
             listen: listen,
             kill_switch : config.kill_switch,
-            proto_entry_fn : config.proto_entry_fn,
             max_thread_size : config.max_thread_size,
-            active_thread_size : Arc::new(Mutex::new(0))
+            active_thread_size : Arc::new(Mutex::new(0)),
+            action : config.action,
+            db_pool : config.db_pool
         })
     }
 
@@ -126,70 +131,92 @@ impl TcpServer {
         Ok(())
     }
 
-    fn start_entry(mut client : TcpStream, entry : proto_entry_fn) {
+    fn start_entry(action :&'_ str, pool : CommonSqlConnectionPool, mut client : TcpStream) {
         let data = Self::get_proto_data_from_client(&mut client);
         if data.is_err() {
             logger::error!("{}", data.unwrap_err());
             return;
         }
 
-        let entry_ret = entry(data.unwrap());
-        if entry_ret.is_err() {
-            logger::error!("{}", entry_ret.unwrap_err());
+        let entry = search_proto_entry(action, data.as_ref().unwrap());
+        if entry.is_err() {
+            let e= entry.err().unwrap();
+            logger::error!("{}", e);
             return;
         }
+        let conn = pool.get_owned(());
+        if conn.is_err() {
+            let e= conn.err().unwrap();
+            logger::error!("{}", e);
+            return;
+        }
+
+        let mut conn_ret = conn.unwrap();
+        let real_conn = conn_ret.get_value();
+        let entry_ret = entry.unwrap()(real_conn, data.unwrap());
 
         let send_ret = Self::send_proto_data_from_client(&mut client, entry_ret.unwrap());
         if send_ret.is_err() {
             logger::error!("{}", send_ret.unwrap_err());
+            conn_ret.dispose();
         }
     }
 
-    pub fn start_service_async(mut server : TcpServer) -> thread::JoinHandle<()> {
-        let job =thread::spawn(move || {
-            let entry = server.proto_entry_fn.take().unwrap();
-            let cur_thread = thread::current();
-            let t_name = cur_thread.name().take().unwrap();
+    fn check_thread_count(&self) -> bool {
+        let act_size = self.active_thread_size.lock().unwrap();
+        return self.max_thread_size < *act_size;
+    }
 
-            thread::scope(|ctl| {
-                loop {
-                    if server.is_kill_server() {
-                        break;
+    fn server_main(&mut self) {
+        let cur_thread = thread::current();
+        let t_name = cur_thread.name().take().unwrap();
+
+        thread::scope(|ctl| {
+            loop {
+                if self.is_kill_server() {
+                    break;
+                }
+
+                let client_opt = self.accept_client();
+                if client_opt.is_none() {
+                    continue;
+                }
+                let (client, client_addr) = client_opt.unwrap();
+                logger::info!("aceept client [thread:{}] [addr:{}]", t_name, client_addr.ip());
+
+                if !self.check_thread_count() {
+                    let err : Result<(), Box<dyn Error>> = common_make_err!(system, LimitError, "");
+                    logger::error!("{}", err.unwrap_err());
+                    thread::sleep(time::Duration::from_secs(1));
+                    continue;
+                }
+
+                let active_status = Arc::clone(&self.active_thread_size);
+                let action = self.action.clone();
+                let p = Arc::clone(&self.db_pool);
+
+                ctl.spawn(|| {
+                    let active = active_status;
+                    {
+                        *active.lock().unwrap() += 1;
                     }
 
-                    let client_opt = server.accept_client();
-                    if client_opt.is_none() {
-                        continue;
-                    }
-                    let (client, client_addr) = client_opt.unwrap();
-                    logger::info!("aceept client [thread:{}] [addr:{}]", t_name, client_addr.ip());
+                    let client = client;
+                    let action = action;
+                    let pool = p;
 
-                    let act_mutex = server.active_thread_size.clone();
+                    Self::start_entry(action.as_str(), pool, client);
 
                     {
-                        let act_size = act_mutex.lock().unwrap();
-                        if server.max_thread_size >= *act_size {
-                            let err : Result<(), Box<dyn Error>> = common_make_err!(system, LimitError, "{}/{}", *act_size, server.max_thread_size);
-                            logger::error!("{}", err.unwrap_err());
-                            thread::sleep(time::Duration::from_secs(1));
-                            continue;
-                            }
+                        *active.lock().unwrap() -= 1;
                     }
-
-                    ctl.spawn(move || {
-                        {
-                            let mut act_size = act_mutex.lock().unwrap();
-                            *act_size += 1;
-                        }
-                        Self::start_entry(client, entry);
-                        {                    
-                            let mut act_size = act_mutex.lock().unwrap();
-                            *act_size -= 1;
-                        }
-                    });
-                }
-            });
+                });
+            }
         });
+    }
+
+    pub fn start_service_async(mut self) -> thread::JoinHandle<()> {
+        let job =thread::spawn(move || {self.server_main();});
 
         job
     }

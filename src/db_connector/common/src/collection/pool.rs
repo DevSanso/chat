@@ -8,7 +8,7 @@ pub trait PoolItem<T> {
     fn dispose(&mut self);
     fn restoration(&mut self);
 }
-pub trait ThreadSafePool<T,P>  where T : 'static, P: 'static {
+pub trait ThreadSafePool<T,P> : Send + Sync   where T : 'static, P: 'static {
     fn get_owned(&self, param : P) -> Result<Box<dyn PoolItem<T>>, Box<dyn Error>>;
     fn alloc_size(&self) -> usize;
     fn max_size(&self) -> usize;

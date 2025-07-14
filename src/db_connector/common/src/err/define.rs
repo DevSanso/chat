@@ -22,9 +22,9 @@ impl_err_mod!(system, [
     (OverflowSizeError, "overflow size error", "check array size or range size"),
     (LimitError, "over limit size", "check process status"),
     (ApiCallError, "system api call function is return error", "check server code"),
-    (NoSupportError, "not support is function", "check server code and data"),
-    (CriticalError, "critical error", "system critial error, check os status and code")
-
+    (NoSupportError, "not support", "check server code and data"),
+    (CriticalError, "critical error", "system critial error, check os status and code"),
+    (FileIoError, "file io error", "check system env")
 ]);
 
 impl_err_mod!(no_category, [

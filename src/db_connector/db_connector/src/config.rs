@@ -1,34 +1,51 @@
 
+use std::error::Error;
+
 use serde::{Deserialize};
+use toml;
+
+use common::common_make_err;
 
 #[derive(Deserialize)]
-struct ServerConfig {
+pub struct ServerConfig {
     #[serde( alias = "ip")]
-    ip : String,
+    pub ip : String,
     #[serde( alias = "port")]
-    port : u32,
+    pub port : u32,
     #[serde( alias = "thread_count")]
-    thread_count : usize
+    pub thread_count : usize
 }
 
 #[derive(Deserialize)]
-struct DbConfig {
+pub struct DbConfig {
     #[serde( alias = "ip")]
-    ip : String,
+    pub ip : String,
     #[serde( alias = "port")]
-    port : u32,
+    pub port : u32,
     #[serde( alias = "user")]
-    user : String,
+    pub user : String,
     #[serde( alias = "password")]
-    password : String,
+    pub password : String,
     #[serde( alias = "dbname")]
-    dbname : String
+    pub dbname : String
 }
 
 #[derive(Deserialize)]
-struct Config {
+pub struct Config {
     #[serde( alias = "server_config")]
-    server : ServerConfig,
+    pub server : ServerConfig,
     #[serde( alias = "db_config")]
-    db : DbConfig
+    pub db : DbConfig
+}
+
+pub fn read_config(path : &'_ str) -> Result<Config, Box<dyn Error>> {
+    let data = std::fs::read_to_string(path).map_err(|x| {
+        let e : Result<(), Box<dyn Error>> = common_make_err!(system, FileIoError, "{}", x);
+        e.unwrap_err()
+    })?;
+
+    toml::from_str::<Config>(data.as_str()).map_err(|x| {
+        let e :Result<Config, Box<dyn Error>> = common_make_err!(data, ParsingError, "{}", x);
+        e.err().unwrap()
+    })
 }
