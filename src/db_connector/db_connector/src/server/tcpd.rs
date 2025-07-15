@@ -15,13 +15,13 @@ use crate::entry::proto::search_proto_entry;
 
 
 pub struct TcpServerConfig {
-    kill_switch : Arc<Mutex<bool>>,
-    db_pool : CommonSqlConnectionPool,
+    pub kill_switch : Arc<Mutex<bool>>,
+    pub db_pool : CommonSqlConnectionPool,
 
-    ip : String,
-    port : u32,
-    max_thread_size : usize,
-    action : String
+    pub ip : String,
+    pub port : u32,
+    pub max_thread_size : usize,
+    pub action : String
 }
 pub struct TcpServer {
     listen : TcpListener,

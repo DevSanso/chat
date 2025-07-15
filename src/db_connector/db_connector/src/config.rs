@@ -27,7 +27,11 @@ pub struct DbConfig {
     #[serde( alias = "password")]
     pub password : String,
     #[serde( alias = "dbname")]
-    pub dbname : String
+    pub dbname : String,
+    #[serde( alias = "max_size")]
+    pub max_size : usize,
+    #[serde( alias = "timeout")]
+    pub timeout_sec : u32
 }
 
 #[derive(Deserialize)]

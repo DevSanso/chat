@@ -19,6 +19,9 @@ pub struct Args {
     #[arg(short, long, required = true, help = "connect database type")]
     pub database: String,
 
-    #[arg(short, long, default_value_t = String::from("info"), help = "info level")]
-    pub log_level: String
+    #[arg(short, long, default_value_t = String::from("info"), help = "log level")]
+    pub log_level: String,
+
+    #[arg(short, long, default_value_t = String::from("$DBCONN_HOME/log/dbconn.log"), help = "log file")]
+    pub log_file: String
 }

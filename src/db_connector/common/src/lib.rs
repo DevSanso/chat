@@ -16,3 +16,14 @@ pub mod logger {
         }
     }
 }
+
+pub mod signal {
+    pub use crate::init::signal::SIGABRT;
+    pub use crate::init::signal::SIGBUS;
+    pub use crate::init::signal::SIGINT;
+    pub use crate::init::signal::SIGPIPE;
+
+    pub fn is_set_signal(num : i32) -> bool {
+        crate::init::signal::is_set_signal(num)
+    }
+}
