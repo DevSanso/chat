@@ -1,1 +1,1 @@
-mod perm;
+pub mod perm;

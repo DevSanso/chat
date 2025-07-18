@@ -56,7 +56,7 @@ pub mod db_conn_request_perm {
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct SelectObjectPermResult {
+pub struct SelectObjectPermResponse {
     #[prost(string, tag = "1")]
     pub object: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
@@ -66,19 +66,24 @@ pub struct SelectObjectPermResult {
     #[prost(bool, tag = "4")]
     pub group_write: bool,
 }
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SelectObjectPermResponses {
+    #[prost(message, repeated, tag = "1")]
+    pub res: ::prost::alloc::vec::Vec<SelectObjectPermResponse>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DbConnResponsePerm {
     #[prost(oneof = "db_conn_response_perm::Body", tags = "1, 2")]
     pub body: ::core::option::Option<db_conn_response_perm::Body>,
 }
 /// Nested message and enum types in `DbConnResponsePerm`.
 pub mod db_conn_response_perm {
-    #[derive(Clone, PartialEq, Eq, Hash, ::prost::Oneof)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Body {
         #[prost(string, tag = "1")]
         Dummy(::prost::alloc::string::String),
         #[prost(message, tag = "2")]
-        SelectRes(super::SelectObjectPermResult),
+        Select(super::SelectObjectPermResponses),
     }
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -90,7 +95,7 @@ pub struct DbConnResponse {
 }
 /// Nested message and enum types in `DbConnResponse`.
 pub mod db_conn_response {
-    #[derive(Clone, PartialEq, Eq, Hash, ::prost::Oneof)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Body {
         #[prost(message, tag = "2")]
         Perm(super::DbConnResponsePerm),

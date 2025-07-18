@@ -1,6 +1,7 @@
 pub mod collection;
 pub mod err;
 pub mod init;
+pub mod utils;
 
 pub mod logger {
     pub use log::debug;

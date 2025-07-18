@@ -36,16 +36,20 @@ message DbConnRequestPerm {
   }
 }
 
-message SelectObjectPermResult {
+message SelectObjectPermResponse {
   string object = 1;
   string groups = 2;
   bool  group_read = 3;
   bool  group_write = 4;
 }
 
+message SelectObjectPermResponses {
+  repeated SelectObjectPermResponse res = 1;
+}
+
 message DbConnResponsePerm {
   oneof body {
     string dummy = 1;
-    SelectObjectPermResult select_res = 2;
+    SelectObjectPermResponses select= 2;
   }
 }

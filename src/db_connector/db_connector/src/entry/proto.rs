@@ -8,7 +8,7 @@ use idl::protos::dbconn::DbConnResponse;
 use common_conn::CommonSqlConnection;
 use idl::protos::dbconn::db_conn_request::Body as RequestBody;
 
-pub type ProtoEntryFn = &'static (dyn Fn(&Box<dyn CommonSqlConnection>, DbConnRequest) -> Result<DbConnResponse, Box<dyn Error>> + Send + Sync);
+pub type ProtoEntryFn = &'static (dyn Fn(&mut Box<dyn CommonSqlConnection>, DbConnRequest) -> Result<DbConnResponse, Box<dyn Error>> + Send + Sync);
 
 fn proto_search_perm_sub_entry(body : &RequestBody) -> Result<ProtoEntryFn, Box<dyn Error>>{
     let perm_req= match body {
