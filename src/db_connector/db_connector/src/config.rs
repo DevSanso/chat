@@ -4,7 +4,7 @@ use std::error::Error;
 use serde::{Deserialize};
 use toml;
 
-use common::common_make_err;
+use common_rs::err::core::*;
 
 #[derive(Deserialize)]
 pub struct ServerConfig {
@@ -44,12 +44,12 @@ pub struct Config {
 
 pub fn read_config(path : &'_ str) -> Result<Config, Box<dyn Error>> {
     let data = std::fs::read_to_string(path).map_err(|x| {
-        let e : Result<(), Box<dyn Error>> = common_make_err!(system, FileIoError, "{}", x);
+        let e : Result<(), Box<dyn Error>> = create_error(COMMON_ERROR_CATEGORY, FILE_IO_ERROR, x.to_string()).as_error();
         e.unwrap_err()
     })?;
 
     toml::from_str::<Config>(data.as_str()).map_err(|x| {
-        let e :Result<Config, Box<dyn Error>> = common_make_err!(data, ParsingError, "{}", x);
+        let e :Result<Config, Box<dyn Error>> = create_error(COMMON_ERROR_CATEGORY, PARSING_ERROR, x.to_string()).as_error();
         e.err().unwrap()
     })
 }

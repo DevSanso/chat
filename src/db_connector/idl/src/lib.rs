@@ -3,12 +3,13 @@ pub mod protos;
 use std::error::Error;
 use prost;
 
-use common::common_make_err;
+use common_rs::err::create_error;
+use common_rs::err::core::{COMMON_ERROR_CATEGORY, PARSING_ERROR};
 
 pub fn decode_protobuf<T : prost::Message + std::default::Default>(data : &'_ [u8]) -> Result<T, Box<dyn Error>> {
     match T::decode(data) {
         Ok(ok) => Ok(ok),
-        Err(e) => common_make_err!(data, ParsingError, "{}", e)
+        Err(e) => create_error(COMMON_ERROR_CATEGORY, PARSING_ERROR, format!("{}", e)).as_error()
     }
 }
 
@@ -17,6 +18,6 @@ pub fn encode_protobuf<T : prost::Message + std::default::Default>(data : T) -> 
 
     match data.encode(&mut bytes_buf) {
         Ok(()) => Ok(bytes_buf),
-        Err(e) => common_make_err!(data, ParsingError, "{}", e)
+        Err(e) => create_error(COMMON_ERROR_CATEGORY, PARSING_ERROR, format!("{}", e)).as_error()
     }
 }

@@ -6,7 +6,7 @@ edition = "2021"
 build = "build.rs"
 [dependencies]
 prost = "0.14.1"
-common = {path = "../common"}
+common_rs = { git = "https://github.com/DevSanso/common_rs", package = "common_rs", branch = "master"}
 
 [build-dependencies]
 lazy_static = "1.4.0"

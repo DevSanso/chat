@@ -1,11 +1,10 @@
 use std::error::Error;
 
-use common::common_make_err;
-use common_conn::CommonSqlConnection;
-use common::{enum_option_get_only_one, enum_get_only_one_ref, enum_get_only_one};
 
-use common_conn::CommonSqlExecuteResultSet;
-use common_conn::CommonValue;
+use crate::utils::r#macro::*;
+use common_rs::err::core::*;
+
+use common_rs::db::*;
 use idl::protos::dbconn::DbConnRequest;
 use idl::protos::dbconn::DbConnResponse;
 use idl::protos::dbconn::db_conn_request::Body as RootBody;
@@ -73,7 +72,7 @@ pub(super) fn proto_perm_drop_entry(conn : &mut Box<dyn CommonSqlConnection>, re
     let drop_data = enum_option_get_only_one!(PermBody, Drop, perm_data.body)?; 
 
     if drop_data.body.is_none() {
-        return common_make_err!(data, NoDataError, "");
+        return create_error(COMMON_ERROR_CATEGORY, NO_DATA_ERROR, "".to_string()).as_error();
     }
 
     let data_and_query = match drop_data.body.as_ref().unwrap() {

@@ -3,18 +3,16 @@ mod constant;
 mod server;
 mod args;
 mod entry;
+mod utils;
 
 use std::sync::{Arc, Mutex};
 use std::{thread, time};
 
 use clap::Parser;
 
-use common::init;
-use common::common_make_err;
-use duckdb_conn::create_duckdb_conn_pool;
-use postgres_conn::create_pg_conn_pool;
-use scylla_conn::create_scylla_conn_pool;
-use common_conn::{CommonSqlConnectionPool, CommonSqlConnectionInfo};
+use common_rs::init;
+use common_rs::err::core::*;
+use common_rs::db::{CommonSqlConnectionInfo, CommonSqlConnectionPool, create_common_sql_pool, DatabaseType};
 
 fn create_db_pool(dbtype : &'_ str, config : &config::DbConfig) -> Result<CommonSqlConnectionPool, Box<dyn std::error::Error>> {
     let info = CommonSqlConnectionInfo {
@@ -26,11 +24,12 @@ fn create_db_pool(dbtype : &'_ str, config : &config::DbConfig) -> Result<Common
     };
     
     match dbtype {
-        "POSTGRES" => Ok(create_pg_conn_pool("pg".to_string(), info, config.max_size)),
-        "SCYLLA" => Ok(create_scylla_conn_pool("scylla".to_string(), vec![info], config.max_size)),
-        "DUCKDB" => Ok(create_duckdb_conn_pool("duck".to_string(), info, config.max_size)),
-        _ => common_make_err!(system, NoSupportError, "{}", dbtype)
+        "POSTGRES" => Ok(create_common_sql_pool(DatabaseType::POSTGRES(info),config.dbname.clone(), config.max_size)),
+        "SCYLLA" => Ok(create_common_sql_pool(DatabaseType::SCYLLA(vec![info]),config.dbname.clone(), config.max_size)),
+        "DUCKDB" => Ok(create_common_sql_pool(DatabaseType::DUCKDB(info),config.dbname.clone(), config.max_size)),
+        _ => create_error(COMMON_ERROR_CATEGORY, NO_SUPPORT_ERROR, format!("{}", dbtype)).as_error()
     }
+
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>>{
@@ -50,12 +49,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
         db_pool : create_db_pool(process_args.database.as_str(), &config.db)?,
         action : process_args.action.clone()
     };
-
+    
     let tcp_server = server::tcpd::TcpServer::new(server_config)?;
     let job = tcp_server.start_service_async();
 
     loop {
-        if common::signal::is_set_signal(common::signal::SIGINT) {
+        if common_rs::signal::is_set_signal(common_rs::signal::SIGINT) {
             *kill_switch.lock().unwrap() = true;
             break;
         }
@@ -64,7 +63,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
     }
 
     job.join().map_err(|_| {
-        let e : Result<(), Box<dyn std::error::Error>> = common_make_err!(system, CriticalError,"");
+        let e : Result<(), Box<dyn std::error::Error>> = create_error(COMMON_ERROR_CATEGORY, CRITICAL_ERROR, "".to_string()).as_error();
         e.err().unwrap()
     })?;
 

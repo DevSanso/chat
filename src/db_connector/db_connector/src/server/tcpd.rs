@@ -1,13 +1,12 @@
-use std::cell::RefCell;
 use std::error::Error;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream, SocketAddr};
 use std::sync::{Arc, Mutex};
 use std::{thread, time};
 
-use common::common_make_err;
-use common_conn::{CommonSqlConnectionPool, CommonSqlConnection};
-use common::logger;
+use common_rs::err::core::*;
+use common_rs::db::{CommonSqlConnectionPool};
+use common_rs::logger;
 use idl::protos::dbconn::DbConnRequest;
 use idl::protos::dbconn::DbConnResponse;
 use crate::entry::proto::search_proto_entry;
@@ -35,8 +34,8 @@ pub struct TcpServer {
 impl TcpServer {
     pub fn new(config : TcpServerConfig) -> Result<Self, Box<dyn Error>> {
         let listen  = TcpListener::bind(format!("{}:{}", config.ip, config.port).as_str()).map_err(|e| {
-            let err : Result<(), Box<dyn std::error::Error>> = common_make_err!(system, ApiCallError,
-                 "[err:{}][ip:{}] [port:{}]", e, config.ip, config.port);
+            let err : Result<(), Box<dyn std::error::Error>> = create_error(COMMON_ERROR_CATEGORY, MAX_SIZED_ERROR,
+                 format!("[err:{}][ip:{}] [port:{}]", e, config.ip, config.port)).as_error();
             err.unwrap_err()
         })?;
 
@@ -52,13 +51,12 @@ impl TcpServer {
 
     fn is_kill_server(&mut self) -> bool {
          let is_kill_ret = self.kill_switch.lock().map_err(|x| {
-            let err : Result<(), Box<dyn Error>> = common_make_err!(system, ApiCallError, 
-                "{}", x);
-            err.unwrap_err()
+            let e : Result<(), Box<dyn Error>> = create_error(COMMON_ERROR_CATEGORY, API_CALL_ERROR, x.to_string()).as_error();
+            e
         });
 
         if is_kill_ret.is_err() {
-            logger::error!("{}", is_kill_ret.unwrap_err());
+            logger::error!("{}", "kill failed server");
             return false;
         }
 
@@ -73,9 +71,9 @@ impl TcpServer {
         let accept = self.listen.accept();
 
         if accept.is_err() {
-            let err : Result<(), Box<dyn Error>> = common_make_err!(system, ApiCallError, 
-                "{}", accept.unwrap_err());
-            
+            let err : Result<(), Box<dyn Error>> = create_error(COMMON_ERROR_CATEGORY,
+                 API_CALL_ERROR, accept.unwrap_err().to_string()).as_error();
+
             logger::error!("{}", err.unwrap_err());
             None
         }
@@ -84,8 +82,8 @@ impl TcpServer {
             let set_ret = c.set_read_timeout(Some(time::Duration::new(3,0)));
 
             if set_ret.is_err() {
-                let err : Result<(), Box<dyn Error>> = common_make_err!(system, ApiCallError, 
-                    "{}", set_ret.unwrap_err());
+                let err : Result<(), Box<dyn Error>> = create_error(COMMON_ERROR_CATEGORY,
+                    API_CALL_ERROR, format!("{}", set_ret.unwrap_err())).as_error();
 
                 logger::error!("{}", err.unwrap_err());
                 None
@@ -101,8 +99,8 @@ impl TcpServer {
         loop {
             let mut byte_buf = [0 as u8;4096];
             let read_byte = c.read(&mut byte_buf).map_err(|e| {
-                let err : Result<(), Box<dyn Error>> = common_make_err!(system, ApiCallError, 
-                    "{}", e);
+                let err : Result<(), Box<dyn Error>> = create_error(COMMON_ERROR_CATEGORY,
+                    API_CALL_ERROR, format!("{}", e)).as_error();
                 err.unwrap_err()
             })?;
 
@@ -111,8 +109,8 @@ impl TcpServer {
         }
 
         let data = idl::decode_protobuf::<DbConnRequest>(buf.as_slice()).map_err(|e| {
-            let err : Result<(), Box<dyn Error>> = common_make_err!(system, ApiCallError, 
-                "{}", e);
+            let err : Result<(), Box<dyn Error>> = create_error(COMMON_ERROR_CATEGORY,
+                API_CALL_ERROR, format!("{}", e)).as_error();
             err.unwrap_err()
         })?;
 
@@ -123,8 +121,8 @@ impl TcpServer {
         let send_data = idl::encode_protobuf(data)?;
 
         c.write(send_data.as_slice()).map_err(|e| {
-            let err : Result<(), Box<dyn Error>> = common_make_err!(system, ApiCallError, 
-                "{}", e);
+            let err : Result<(), Box<dyn Error>> = create_error(COMMON_ERROR_CATEGORY,
+                API_CALL_ERROR, format!("{}", e)).as_error();
             err.unwrap_err()
         })?;
 
@@ -184,8 +182,10 @@ impl TcpServer {
                 let (client, client_addr) = client_opt.unwrap();
                 logger::info!("aceept client [thread:{}] [addr:{}]", t_name, client_addr.ip());
 
+
                 if !self.check_thread_count() {
-                    let err : Result<(), Box<dyn Error>> = common_make_err!(system, LimitError, "");
+                    let err : Result<(), Box<dyn Error>> = create_error(COMMON_ERROR_CATEGORY,
+                        MAX_SIZED_ERROR, "".to_string()).as_error();
                     logger::error!("{}", err.unwrap_err());
                     thread::sleep(time::Duration::from_secs(1));
                     continue;
